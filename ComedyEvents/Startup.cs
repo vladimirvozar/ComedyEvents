@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AutoMapper;
 using ComedyEvents.Context;
 using ComedyEvents.Services;
 using Microsoft.AspNetCore.Builder;
@@ -21,6 +22,7 @@ namespace ComedyEvents
         {
             services.AddDbContext<EventContext>();
             services.AddScoped<IEventRepository, EventRepository>();
+            services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
             services.AddMvc(options => options.EnableEndpointRouting = false)
                 .AddNewtonsoftJson(options =>
                 {

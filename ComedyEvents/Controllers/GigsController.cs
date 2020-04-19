@@ -4,7 +4,6 @@ using ComedyEvents.Models;
 using ComedyEvents.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,25 +13,31 @@ namespace ComedyEvents.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class EventsController : ControllerBase
+    public class GigsController : ControllerBase
     {
         private readonly IEventRepository _eventRepository;
         private readonly IMapper _mapper;
 
-        public EventsController(IEventRepository eventRepository, IMapper mapper)
+        public GigsController(IEventRepository eventRepository, IMapper mapper)
         {
             _eventRepository = eventRepository;
             _mapper = mapper;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<EventDto[]>> Get(bool includeGigs = false)
+
+        [HttpGet("searchByEvent")]
+        public async Task<ActionResult<GigDto[]>> GetGigsByEvent(int eventId, bool includeComedians = false)
         {
             try
             {
-                var result = await _eventRepository.GetEvents(includeGigs);
+                var result = await _eventRepository.GetGigsByEvent(eventId, includeComedians);
 
-                var mappedEntities = _mapper.Map<EventDto[]>(result);
+                if (!result.Any())
+                {
+                    return NotFound();
+                }
+
+                var mappedEntities = _mapper.Map<GigDto[]>(result);
 
                 return Ok(mappedEntities);
             }
@@ -42,19 +47,41 @@ namespace ComedyEvents.Controllers
             }
         }
 
-        [HttpGet("{eventId}")]
-        public async Task<ActionResult<EventDto>> Get(int eventId, bool includeGigs = false)
+        [HttpGet("searchByVenue")]
+        public async Task<ActionResult<GigDto[]>> GetGigsByVenue(int venueId, bool includeComedians = false)
         {
             try
             {
-                var result = await _eventRepository.GetEvent(eventId, includeGigs);
+                var result = await _eventRepository.GetGigsByVenue(venueId, includeComedians);
+
+                if (!result.Any())
+                {
+                    return NotFound();
+                }
+
+                var mappedEntities = _mapper.Map<GigDto[]>(result);
+
+                return Ok(mappedEntities);
+            }
+            catch (Exception ex)
+            {
+                return this.StatusCode(StatusCodes.Status500InternalServerError, "Database Failure");
+            }
+        }
+
+        [HttpGet("{gigId}")]
+        public async Task<ActionResult<GigDto>> GetGig(int gigId, bool includeComedians = false)
+        {
+            try
+            {
+                var result = await _eventRepository.GetGig(gigId, includeComedians);
 
                 if (result == null)
                 {
                     return NotFound();
                 }
 
-                var mappedEntity = _mapper.Map<EventDto>(result);
+                var mappedEntity = _mapper.Map<GigDto>(result);
 
                 return Ok(mappedEntity);
             }
@@ -64,40 +91,18 @@ namespace ComedyEvents.Controllers
             }
         }
 
-        [HttpGet("search")]
-        public async Task<ActionResult<EventDto[]>> SearchByDate(DateTime date, bool includeGigs = false)
-        {
-            try
-            {
-                var result = await _eventRepository.GetEventsByDate(date, includeGigs);
-
-                if (!result.Any())
-                {
-                    return NotFound();
-                }
-
-                var mappedEntities = _mapper.Map<EventDto[]>(result);
-
-                return Ok(mappedEntities);
-            }
-            catch (Exception ex)
-            {
-                return this.StatusCode(StatusCodes.Status500InternalServerError, "Database Failure");
-            }
-        }
-
         [HttpPost]
-        public async Task<ActionResult<EventDto>> Post([FromBody] EventDto dto)
+        public async Task<ActionResult<GigDto>> Post([FromBody] GigDto dto)
         {
             try
             {
-                var mappedEntity = _mapper.Map<Event>(dto);
+                var mappedEntity = _mapper.Map<Gig>(dto);
                 _eventRepository.Add(mappedEntity);
 
                 if (await _eventRepository.Save())
                 {
-                    var location = Url.Action(action: "Get", new { eventId = mappedEntity.EventId });
-                    return Created(location, _mapper.Map<EventDto>(mappedEntity));
+                    var location = Url.Action(action: "GetGig", new { gigId = mappedEntity.GigId });
+                    return Created(location, _mapper.Map<GigDto>(mappedEntity));
                 }
             }
             catch (Exception ex)
@@ -108,22 +113,22 @@ namespace ComedyEvents.Controllers
             return BadRequest();
         }
 
-        [HttpPut("{eventId}")]
-        public async Task<ActionResult<EventDto>> Put(int eventId, [FromBody] EventDto dto)
+        [HttpPut("{gigId}")]
+        public async Task<ActionResult<GigDto>> Put(int gigId, [FromBody] GigDto dto)
         {
             try
             {
-                var oldEvent = await _eventRepository.GetEvent(eventId);
+                var oldGig = await _eventRepository.GetGig(gigId);
 
-                if(oldEvent == null)
+                if (oldGig == null)
                 {
-                    return NotFound($"Could not find event with id {eventId}");
+                    return NotFound($"Could not find a gig with id {gigId}");
                 }
 
-                var newEvent = _mapper.Map(dto, oldEvent);
+                var newGig = _mapper.Map(dto, oldGig);
 
-                _eventRepository.Update(newEvent);
-                
+                _eventRepository.Update(newGig);
+
                 if (await _eventRepository.Save())
                 {
                     return NoContent();
@@ -137,19 +142,19 @@ namespace ComedyEvents.Controllers
             return BadRequest();
         }
 
-        [HttpDelete("{eventId}")]
-        public async Task<IActionResult> Delete(int eventId)
+        [HttpDelete("{gigId}")]
+        public async Task<IActionResult> Delete(int gigId)
         {
             try
             {
-                var oldEvent = await _eventRepository.GetEvent(eventId);
+                var oldGig = await _eventRepository.GetGig(gigId);
 
-                if (oldEvent == null)
+                if (oldGig == null)
                 {
-                    return NotFound($"Could not find event with id {eventId}");
+                    return NotFound($"Could not find a gig with id {gigId}");
                 }
 
-                _eventRepository.Delete(oldEvent);
+                _eventRepository.Delete(oldGig);
 
                 if (await _eventRepository.Save())
                 {
